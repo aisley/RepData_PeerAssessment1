@@ -1,20 +1,147 @@
 # Reproducible Research: Peer Assessment 1
 
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the "quantified self" movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. But these data remain under-utilized both because the raw data are hard to obtain and there is a lack of statistical methods and software for processing and interpreting the data.
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+##Data
+
+The data for this assignment can be downloaded from the course web site:
+
+* Dataset: Activity monitoring data [52K]
+
+The variables included in this dataset are:
+
+* steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+
+* date: The date on which the measurement was taken in YYYY-MM-DD format
+
+* interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+All Files necessary to recreate this research can be found in this [Github repository][1]: 
+
+[1]: https://github.com/aisley/RepData_PeerAssessment1 "Github REpository"
 
 ## Loading and preprocessing the data
 
+```{r init, results='hide'}
+     
+fileURL <- "https://github.com/aisley/RepData_PeerAssessment1/blob/master/activity.zip"
 
+SourceFile <- "activity.zip"
+fileDir <- "Data"
 
+#Check if Data Dir exists adn create if not
+if(!file.exists(fileDir)) {
+     dir.create(fileDir)
+}
+
+#Get the Data dir to place the files
+DataFileDir <- paste(getwd(), fileDir, sep="/")
+
+zipFile <- paste(getwd(), SourceFile, sep="/")
+if(!file.exists(zipFile)) 
+     {
+          download.file(fileURL, destfile=SourceFile)
+     } 
+
+#Check to see if file was downloaded
+if(!file.exists(zipFile)) {
+     DataFileDir <- "ERR"
+} else {
+     unzip(zipFile,  exdir = DataFileDir)
+}
+
+dataFile <- paste(getwd(), "data/Activity.csv", sep="/")
+
+activity <- read.csv(dataFile, header=TRUE, sep=",")
+```
+
+Lets take a look at a sample of the data that was loaded.
+
+```{r}
+head(activity)
+```
+The activity data set consisted of `r nrow(activity)` rows and `r ncol(activity)` columns. 
+
+The column names are **`r names(activity)`** and their respective class are **`r sapply(activity, class)`**.  The date column needs to have it data type corrected from factor to date.
+
+```{r}
+#convert the date to a date format
+activity$date <- as.Date(as.character(activity$date), format="%Y-%m-%d")
+```
+Verify the data types are correct.
+
+The column names are **`r names(activity)`** and their respective class is **`r sapply(activity, class)`**.
+
+Quickly we notice that NA is used to represent missing or not recorded values.  These will be removed later in our analysis.
+
+Before we beginn our analysis, several libraries are needed.
+```{r loadrequiredlibraries, warning=FALSE, results='hide'} 
+# Install and load all required libraries used in this analysis
+for (x in c("ggplot2", "plyr")) { 
+if (x %in% rownames(installed.packages()) == FALSE) { 
+    install.packages(x) 
+    } 
+} 
+require(ggplot2) 
+require(plyr) 
+``` 
 ## What is mean total number of steps taken per day?
 
+In this section we will calculate the total steps per day while ignoring the missing(NA) values.
+```{r StepsPerDayHist}
+#Aggregate the total steps by day
+activity.TotalStepsPerDay <- aggregate(steps ~ date, data=activity, FUN=sum, na.action = na.omit) 
+StepsMean <- mean(activity.TotalStepsPerDay$steps , na.rm=TRUE) 
+StepsMedian <- median(activity.TotalStepsPerDay$steps , na.rm=TRUE) 
 
+p <- ggplot(activity.TotalStepsPerDay, aes(x=steps)) 
+p <- p + geom_histogram(binwidth=1000, color="black", fill="grey") 
+p <- p + xlab("stpes") 
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+# add a mean line to the hist
+p <- p + geom_vline(aes(xintercept=StepsMean),   
+               color="blue", linetype="solid", size=1)
+p 
+```
+
+Mean Steps: **`r toString(round(StepsMean, digits = 0), width = 10)`** 
+
+Median Steps: **`r toString(round(StepsMedian, digits = 0), width = 10)`**
 
 ## What is the average daily activity pattern?
+Lets determine the mean by 5 min interval.
+```{r}
+#get the average my 5 min interval
+activity.AvgStepsByInterval <- aggregate(steps ~ interval, data=activity, FUN=mean, na.action = na.omit) 
+
+MaxAvg <- max(activity.AvgStepsByInterval$steps)
+MaxInterval <- activity.AvgStepsByInterval[which.max(activity.AvgStepsByInterval$steps), 1]
+
+plot(x=activity.AvgStepsByInterval$interval
+     ,y=activity.AvgStepsByInterval$steps
+     ,type="l"
+     ,col="blue"
+     ,xlab="5 min Interval"
+     ,ylab="Avg Steps"
+     ,xaxt = "n"
+     ,main = "Average step taken per 5 min interval"
+)
+
+axis(1, at = c("0", "400", "800", "1200", "1600", "2000", "2400"), labels =c("0", "400", "800", "1200", "1600", "2000", "2400"))
+abline(v=MaxInterval, col="red")
+legend(1700, 200, c("Avg Steps", "Max Int"), lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red"))
 
 
+```
+
+The maximun number of steps on avg: **`r toString(round(MaxAvg, digits = 1), width = 10)`** occured during the Interval: **`r toString(round(MaxInterval, digits = 0), width = 10)`** 
 
 ## Imputing missing values
-
+?aggregate
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
