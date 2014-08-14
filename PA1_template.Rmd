@@ -8,15 +8,15 @@ This assignment makes use of data from a personal activity monitoring device. Th
 
 The data for this assignment can be downloaded from the course web site:
 
-* Dataset: Activity monitoring data [52K]
+* **Dataset**: [Activity monitoring data](https://github.com/aisley/RepData_PeerAssessment1/blob/master/activity.zip) [52K]
 
 The variables included in this dataset are:
 
-* steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+* **steps**: Number of steps taking in a 5-minute interval (missing values are coded as `NA`)
 
-* date: The date on which the measurement was taken in YYYY-MM-DD format
+* **date**: The date on which the measurement was taken in YYYY-MM-DD format
 
-* interval: Identifier for the 5-minute interval in which measurement was taken
+* **interval**: Identifier for the 5-minute interval in which measurement was taken
 
 The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
 
@@ -98,13 +98,16 @@ activity.TotalStepsPerDay <- aggregate(steps ~ date, data=activity, FUN=sum, na.
 StepsMean <- mean(activity.TotalStepsPerDay$steps , na.rm=TRUE) 
 StepsMedian <- median(activity.TotalStepsPerDay$steps , na.rm=TRUE) 
 
-p <- ggplot(activity.TotalStepsPerDay, aes(x=steps)) 
-p <- p + geom_histogram(binwidth=1000, color="black", fill="grey") 
-p <- p + xlab("stpes") 
+p <- ggplot(activity.TotalStepsPerDay, aes(x=date, y=steps)) 
+p <- p + geom_histogram(stat="identity", binwidth=1000, color="black", fill="grey") 
+p <- p + xlab("Dates") 
+p <- p + ylab("Steps") 
+p <- p + ggtitle("Avg Steps by Date") 
 p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
 # add a mean line to the hist
-p <- p + geom_vline(aes(xintercept=StepsMean),   
+p <- p + geom_hline(aes(yintercept=StepsMean),   
                color="blue", linetype="solid", size=1)
+p <- p + scale_x_date(breaks = "3 days")
 p 
 ```
 
@@ -117,9 +120,18 @@ Lets determine the mean by 5 min interval.
 ```{r}
 #get the average my 5 min interval
 activity.AvgStepsByInterval <- aggregate(steps ~ interval, data=activity, FUN=mean, na.action = na.omit) 
+#Save the Data before converting the interval.  this step is necessary for the next phase of analysis
+activity.AvgStepsByIntervalSave <- activity.AvgStepsByInterval
+#convert the interval to a time
+activity.AvgStepsByInterval$interval <- sprintf("%04d", activity.AvgStepsByInterval$interval)
+activity.AvgStepsByInterval$interval <- strptime(paste0(substr(activity.AvgStepsByInterval$interval, 1, 2), ":", substr(activity.AvgStepsByInterval$interval, 3, 4)), "%H:%M")
 
 MaxAvg <- max(activity.AvgStepsByInterval$steps)
 MaxInterval <- activity.AvgStepsByInterval[which.max(activity.AvgStepsByInterval$steps), 1]
+#convert the MaxInterval into a Time format
+#MaxInterval <- sprintf("%04d", MaxInterval)
+#MaxInterval <- strptime(paste0(substr(MaxInterval, 1, 2), ":", substr(MaxInterval, 3, 4)), "%H:%M")
+
 
 plot(x=activity.AvgStepsByInterval$interval
      ,y=activity.AvgStepsByInterval$steps
@@ -127,21 +139,89 @@ plot(x=activity.AvgStepsByInterval$interval
      ,col="blue"
      ,xlab="5 min Interval"
      ,ylab="Avg Steps"
-     ,xaxt = "n"
      ,main = "Average step taken per 5 min interval"
 )
 
-axis(1, at = c("0", "400", "800", "1200", "1600", "2000", "2400"), labels =c("0", "400", "800", "1200", "1600", "2000", "2400"))
-abline(v=MaxInterval, col="red")
-legend(1700, 200, c("Avg Steps", "Max Int"), lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red"))
+abline(v=as.POSIXct(MaxInterval), col = "red")
+legend(x="topright", c("Avg Steps", "Max Interval"), lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red"))
 
 
 ```
 
-The maximun number of steps on avg: **`r toString(round(MaxAvg, digits = 1), width = 10)`** occured during the Interval: **`r toString(round(MaxInterval, digits = 0), width = 10)`** 
+The maximun number of steps on avg: **`r toString(round(MaxAvg, digits = 1), width = 10)`** occured during the Interval: **`r strftime(MaxInterval, format="%H:%M")`** 
 
 ## Imputing missing values
-?aggregate
+
+For the next set of analysis, we will replace any missing(NA) intervals and replace them with the mean step for the given interval as calculated in the previous section.
+
+Out of **`r nrow(activity)`** total records, **`r toString((nrow(activity) - nrow(activity[complete.cases(activity$steps), 1:2])), width = 10) `** are missing values.  We will replace these with teh mean of the given interval.
+
+```{r replaceNA}
+#determine the number missing values
+activity.merge<- merge(activity, activity.AvgStepsByIntervalSave, by = "interval", suffixes = c("", ".y"))
+#identify the missing and nonmissing values
+nas <- is.na(activity.merge$steps)
+
+activity.merge$steps[nas] <- activity.merge$steps.y[nas]
+activity.complete <- activity.merge[ , c(1:3)]
+
+#Aggregate the total steps by day
+activity.TotalStepsPerDayNew <- aggregate(steps ~ date, data=activity.complete, FUN=sum) 
+StepsMean2 <- mean(activity.TotalStepsPerDayNew$steps , na.rm=TRUE) 
+StepsMedian2 <- median(activity.TotalStepsPerDayNew$steps , na.rm=TRUE) 
+
+#plot the results in a histogram
+p <- ggplot(activity.TotalStepsPerDayNew, aes(x=date, y=steps)) 
+p <- p + geom_histogram(stat="identity",binwidth=1000, color="black", fill="grey") 
+p <- p + xlab("Interval by Date") 
+p <- p + ylab("Steps") 
+p <- p + ggtitle("Avg Steps by Date") 
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+# add a mean line to the hist
+p <- p + geom_hline(aes(yintercept=StepsMean2),   
+               color="blue", linetype="solid", size=1)
+p <- p + scale_x_date(breaks = "3 days")
+p 
+```
+
+Did replaceing the missing values with the mean cause the mean/median to change?
+
+Origial Mean Steps(ignore NA): **`r toString(round(StepsMean, digits = 0), width = 10)`** 
+
+New Mean Steps (NA replaced): **`r toString(round(StepsMean2, digits = 0), width = 10)`** 
+
+
+Original Median Steps(ignore NA): **`r toString(round(StepsMedian, digits = 0), width = 10)`**
+
+New Median Steps (NA replaced): **`r toString(round(StepsMedian2, digits = 0), width = 10)`**
+
+The impact of Substituting teh Avg steps Per day into the missing values resulted in: **No Impact**
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+For the next phase of our analysis, we will add a column to the data set indicating it the data falls on a Weekday or the Weekend.
+```{r}
+#Add the Column to indicate where the date falls
+activity.DayType <- activity
+activity.DayType$dayType <- ifelse(weekdays(activity$date) %in% c("Saturday", "Sunday"), 'Weekend', 'Weekday')
+
+
+groupColumns = c("dayType", "interval")
+dataColumns = c("steps")
+#Aggregate the data
+activity.AvgStepsByIntervalDayType <- ddply(activity.DayType, groupColumns, summarize, avgSteps = mean(steps, na.rm=TRUE))
+
+#Plot the data
+p <- ggplot(activity.AvgStepsByIntervalDayType, aes(x=interval, y=avgSteps)) 
+p <- p + facet_grid(dayType ~ .) 
+p <- p + geom_line()
+#p <- p + geom_histogram(stat="identity",binwidth=1000, color="black", fill="grey") 
+p <- p + xlab("5 min Interval") 
+p <- p + ylab("Steps") 
+p <- p + ggtitle("Avg Steps by 5 min Interval") 
+p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+p 
+
+```
+
+
