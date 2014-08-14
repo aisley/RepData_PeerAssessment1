@@ -1,4 +1,5 @@
-```{r}
+
+```r
 opts_chunk$set(fig.path = "Figures/")
 ```
 ---
@@ -32,8 +33,8 @@ All Files necessary to recreate this research can be found in this [Github repos
 
 ## Loading and preprocessing the data
 
-```{r init, results='hide' }
-     
+
+```r
 fileURL <- "https://github.com/aisley/RepData_PeerAssessment1/blob/master/activity.zip"
 
 SourceFile <- "activity.zip"
@@ -67,25 +68,38 @@ activity <- read.csv(dataFile, header=TRUE, sep=",")
 
 Lets take a look at a sample of the data that was loaded.
 
-```{r}
+
+```r
 head(activity)
 ```
-The activity data set consisted of `r nrow(activity)` rows and `r ncol(activity)` columns. 
 
-The column names are **`r names(activity)`** and their respective class are **`r sapply(activity, class)`**.  The date column needs to have it data type corrected from factor to date.
+```
+##   steps       date interval
+## 1    NA 2012-10-01        0
+## 2    NA 2012-10-01        5
+## 3    NA 2012-10-01       10
+## 4    NA 2012-10-01       15
+## 5    NA 2012-10-01       20
+## 6    NA 2012-10-01       25
+```
+The activity data set consisted of 17568 rows and 3 columns. 
 
-```{r}
+The column names are **steps, date, interval** and their respective class are **integer, factor, integer**.  The date column needs to have it data type corrected from factor to date.
+
+
+```r
 #convert the date to a date format
 activity$date <- as.Date(as.character(activity$date), format="%Y-%m-%d")
 ```
 Verify the data types are correct.
 
-The column names are **`r names(activity)`** and their respective class is **`r sapply(activity, class)`**.
+The column names are **steps, date, interval** and their respective class is **integer, Date, integer**.
 
 Quickly we notice that NA is used to represent missing or not recorded values.  These will be removed later in our analysis.
 
 Before we beginn our analysis, several libraries are needed.
-```{r loadrequiredlibraries, warning=FALSE, results='hide'} 
+
+```r
 # Install and load all required libraries used in this analysis
 for (x in c("ggplot2", "plyr")) { 
 if (x %in% rownames(installed.packages()) == FALSE) { 
@@ -93,12 +107,24 @@ if (x %in% rownames(installed.packages()) == FALSE) {
     } 
 } 
 require(ggplot2) 
+```
+
+```
+## Loading required package: ggplot2
+```
+
+```r
 require(plyr) 
-``` 
+```
+
+```
+## Loading required package: plyr
+```
 ## What is mean total number of steps taken per day?
 
 In this section we will calculate the total steps per day while ignoring the missing(NA) values.
-```{r StepsPerDayHist}
+
+```r
 #Aggregate the total steps by day
 activity.TotalStepsPerDay <- aggregate(steps ~ date, data=activity, FUN=sum, na.action = na.omit) 
 StepsMean <- mean(activity.TotalStepsPerDay$steps , na.rm=TRUE) 
@@ -117,13 +143,16 @@ p <- p + scale_x_date(breaks = "3 days")
 p 
 ```
 
-Mean Steps: **`r toString(round(StepsMean, digits = 0), width = 10)`** 
+![plot of chunk StepsPerDayHist](Figures/StepsPerDayHist.png) 
 
-Median Steps: **`r toString(round(StepsMedian, digits = 0), width = 10)`**
+Mean Steps: **10766** 
+
+Median Steps: **10765**
 
 ## What is the average daily activity pattern?
 Lets determine the mean by 5 min interval.
-```{r}
+
+```r
 #get the average my 5 min interval
 activity.AvgStepsByInterval <- aggregate(steps ~ interval, data=activity, FUN=mean, na.action = na.omit) 
 #Save the Data before converting the interval.  this step is necessary for the next phase of analysis
@@ -150,19 +179,20 @@ plot(x=activity.AvgStepsByInterval$interval
 
 abline(v=as.POSIXct(MaxInterval), col = "red")
 legend(x="topright", c("Avg Steps", "Max Interval"), lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red"))
-
-
 ```
 
-The maximun number of steps on avg: **`r toString(round(MaxAvg, digits = 1), width = 10)`** occured during the Interval: **`r strftime(MaxInterval, format="%H:%M")`** 
+![plot of chunk unnamed-chunk-4](Figures/unnamed-chunk-4.png) 
+
+The maximun number of steps on avg: **206.2** occured during the Interval: **08:35** 
 
 ## Imputing missing values
 
 For the next set of analysis, we will replace any missing(NA) intervals and replace them with the mean step for the given interval as calculated in the previous section.
 
-Out of **`r nrow(activity)`** total records, **`r toString((nrow(activity) - nrow(activity[complete.cases(activity$steps), 1:2])), width = 10) `** are missing values.  We will replace these with teh mean of the given interval.
+Out of **17568** total records, **2304** are missing values.  We will replace these with teh mean of the given interval.
 
-```{r replaceNA}
+
+```r
 #determine the number missing values
 activity.merge<- merge(activity, activity.AvgStepsByIntervalSave, by = "interval", suffixes = c("", ".y"))
 #identify the missing and nonmissing values
@@ -190,23 +220,26 @@ p <- p + scale_x_date(breaks = "3 days")
 p 
 ```
 
+![plot of chunk replaceNA](Figures/replaceNA.png) 
+
 Did replaceing the missing values with the mean cause the mean/median to change?
 
-Origial Mean Steps(ignore NA): **`r toString(round(StepsMean, digits = 0), width = 10)`** 
+Origial Mean Steps(ignore NA): **10766** 
 
-New Mean Steps (NA replaced): **`r toString(round(StepsMean2, digits = 0), width = 10)`** 
+New Mean Steps (NA replaced): **10766** 
 
 
-Original Median Steps(ignore NA): **`r toString(round(StepsMedian, digits = 0), width = 10)`**
+Original Median Steps(ignore NA): **10765**
 
-New Median Steps (NA replaced): **`r toString(round(StepsMedian2, digits = 0), width = 10)`**
+New Median Steps (NA replaced): **10766**
 
 The impact of Substituting teh Avg steps Per day into the missing values resulted in: **No Impact**
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 For the next phase of our analysis, we will add a column to the data set indicating it the data falls on a Weekday or the Weekend.
-```{r}
+
+```r
 #Add the Column to indicate where the date falls
 activity.DayType <- activity
 activity.DayType$dayType <- ifelse(weekdays(activity$date) %in% c("Saturday", "Sunday"), 'Weekend', 'Weekday')
@@ -227,7 +260,8 @@ p <- p + ylab("Steps")
 p <- p + ggtitle("Avg Steps by 5 min Interval") 
 p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
 p 
-
 ```
+
+![plot of chunk unnamed-chunk-5](Figures/unnamed-chunk-5.png) 
 
 
